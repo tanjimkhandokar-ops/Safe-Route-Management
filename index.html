@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RouteGuard & Emergency Safety Portal</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header>
+        <div class="logo">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>Safe Route</span>
+        </div>
+        <div class="nav-actions">
+            <button class="btn-sos" id="sos-btn" style="display: none;">
+                <i class="fa-solid fa-triangle-exclamation"></i> Emergency SOS
+            </button>
+            <button class="btn-logout" id="user-logout-btn" style="display: none;">
+                <i class="fa-solid fa-right-from-bracket"></i> Logout
+            </button>
+        </div>
+    </header>
+
+    <!-- SOS Triggered Emergency Contacts Modal -->
+    <div class="modal" id="sos-contacts-modal">
+        <div class="modal-content modal-danger">
+            <div class="modal-header text-danger">
+                <i class="fa-solid fa-triangle-exclamation"></i> EMERGENCY SOS ACTIVATED
+            </div>
+            <p class="text-xs text-center text-muted mb-1">Select an authority or primary contact to dial immediately:</p>
+            
+            <div class="emergency-contacts-list">
+                <a href="tel:999" class="sos-call-item item-national">
+                    <i class="fa-solid fa-phone-volume"></i>
+                    <div>
+                        <strong>999 Emergency Hotline</strong>
+                        <span>Police / Ambulance / Fire</span>
+                    </div>
+                </a>
+
+                <a href="tel:01700000000" id="sos-guardian-link" class="sos-call-item item-guardian">
+                    <i class="fa-solid fa-user-nurse"></i>
+                    <div>
+                        <strong id="sos-guardian-name">Parent / Emergency Contact</strong>
+                        <span id="sos-guardian-num">Contact Saved in Profile</span>
+                    </div>
+                </a>
+            </div>
+
+            <button type="button" class="btn-secondary" id="close-sos-modal" style="margin-top: 1rem;">Close Modal</button>
+        </div>
+    </div>
+
+    <!-- User Profile Modal (View/Edit) -->
+    <div class="modal" id="profile-modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <i class="fa-solid fa-id-card"></i> User Profile & Safety Info
+            </div>
+            <form id="profile-update-form">
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label>Full Name</label>
+                        <input type="text" id="prof-name" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Mobile Number</label>
+                        <input type="text" id="prof-phone" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Email Address</label>
+                        <input type="email" id="prof-email" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Occupation / Role</label>
+                        <select id="prof-occupation" required>
+                            <option value="Student">Student</option>
+                            <option value="Job Holder / Employee">Job Holder / Employee</option>
+                            <option value="Business Owner">Business Owner</option>
+                            <option value="Freelancer">Freelancer</option>
+                            <option value="Housewife">Housewife</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Blood Group</label>
+                        <select id="prof-blood">
+                            <option value="A+">A+</option>
+                            <option value="A-">A-</option>
+                            <option value="B+">B+</option>
+                            <option value="B-">B-</option>
+                            <option value="O+">O+</option>
+                            <option value="O-">O-</option>
+                            <option value="AB+">AB+</option>
+                            <option value="AB-">AB-</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Emergency Helpline Contact</label>
+                        <input type="text" id="prof-emergency" placeholder="Emergency contact phone">
+                    </div>
+                    <div class="input-group">
+                        <label>NID / Birth Certificate No.</label>
+                        <input type="text" id="prof-nid" placeholder="Enter NID/BRN">
+                    </div>
+                    <div class="input-group full-width">
+                        <label>Exact Location (Thana, House No, Road No, District)</label>
+                        <input type="text" id="prof-address" placeholder="e.g. House 12, Road 4, Thana: Mirpur, Dhaka">
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                    <button type="submit" class="btn-primary" id="save-prof-btn">Save Changes</button>
+                    <button type="button" class="btn-secondary" id="close-profile-btn">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- FIRST SCREEN: Auth Landing Section (User & Admin Dual Auth) -->
+    <div class="auth-landing" id="auth-landing">
+        <div class="auth-card">
+            
+            <!-- Auth Role Toggle -->
+            <div class="role-selector">
+                <button class="role-btn active" id="role-user-btn"><i class="fa-solid fa-user"></i> User Access</button>
+                <button class="role-btn" id="role-admin-btn"><i class="fa-solid fa-user-shield"></i> Admin Access</button>
+            </div>
+
+            <!-- USER CONTAINER -->
+            <div id="user-auth-box">
+                <div class="auth-tabs">
+                    <button class="tab-btn active" id="tab-user-login">Login</button>
+                    <button class="tab-btn" id="tab-user-register">Register</button>
+                </div>
+
+                <form id="user-login-form" class="auth-form">
+                    <h2>User Login</h2>
+                    <p class="text-xs text-muted mb-1">Enter registered Mobile Number or Email</p>
+                    <div class="input-group">
+                        <label>Mobile Number or Email</label>
+                        <input type="text" id="login-credential" placeholder="017XXXXXXXX or user@gmail.com" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Login to Dashboard</button>
+                </form>
+
+                <form id="user-register-form" class="auth-form hidden">
+                    <h2>User Registration</h2>
+                    <p class="text-xs text-muted mb-1">Create safety profile with Email/Mobile</p>
+                    <div class="register-scroll-area">
+                        <div class="input-group">
+                            <label>Full Name *</label>
+                            <input type="text" id="reg-name" placeholder="Enter full name" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Mobile Number *</label>
+                            <input type="tel" id="reg-phone" placeholder="e.g. 017XXXXXXXX" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Email Address (Gmail) *</label>
+                            <input type="email" id="reg-email" placeholder="example@gmail.com" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Occupation / Work *</label>
+                            <select id="reg-occupation" required>
+                                <option value="">Select Occupation</option>
+                                <option value="Student">Student</option>
+                                <option value="Job Holder / Employee">Job Holder / Employee</option>
+                                <option value="Business Owner">Business Owner</option>
+                                <option value="Freelancer">Freelancer</option>
+                                <option value="Housewife">Housewife</option>
+                                <option value="Other">Other / General Public</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Blood Group *</label>
+                            <select id="reg-blood" required>
+                                <option value="">Select Blood Group</option>
+                                <option value="A+">A+</option>
+                                <option value="A-">A-</option>
+                                <option value="B+">B+</option>
+                                <option value="B-">B-</option>
+                                <option value="O+">O+</option>
+                                <option value="O-">O-</option>
+                                <option value="AB+">AB+</option>
+                                <option value="AB-">AB-</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Primary Emergency Contact No. *</label>
+                            <input type="text" id="reg-emergency" placeholder="Emergency Phone Number" required>
+                        </div>
+                        <div class="input-group">
+                            <label>NID / Birth Certificate No. *</label>
+                            <input type="text" id="reg-nid" placeholder="NID / BRN No" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Exact Location *</label>
+                            <input type="text" id="reg-address" placeholder="Thana, House No, Road No" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-success" style="margin-top: 0.5rem;">Register Account</button>
+                </form>
+            </div>
+
+            <!-- ADMIN CONTAINER -->
+            <div id="admin-auth-box" class="hidden">
+                <div class="auth-tabs">
+                    <button class="tab-btn active" id="tab-admin-login">Admin Login</button>
+                    <button class="tab-btn" id="tab-admin-register">Admin Register</button>
+                </div>
+
+                <form id="admin-login-form" class="auth-form">
+                    <h2>Admin Authentication</h2>
+                    <p class="text-xs text-muted mb-1">Enter Admin Secret Key or Username</p>
+                    <div class="input-group">
+                        <label>Admin Username / Email</label>
+                        <input type="text" id="admin-user" placeholder="admin" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Admin Password</label>
+                        <input type="password" id="admin-pass" placeholder="1234" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Access Admin Console</button>
+                </form>
+
+                <form id="admin-register-form" class="auth-form hidden">
+                    <h2>Register Admin Account</h2>
+                    <p class="text-xs text-muted mb-1">Create new Administrator credentials</p>
+                    <div class="input-group">
+                        <label>Admin Full Name *</label>
+                        <input type="text" id="admin-reg-name" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Admin Username *</label>
+                        <input type="text" id="admin-reg-user" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Security Password *</label>
+                        <input type="password" id="admin-reg-pass" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Admin Security Passcode Key *</label>
+                        <input type="password" id="admin-secret-key" placeholder="Enter Master Key (default: admin123)" required>
+                    </div>
+                    <button type="submit" class="btn-success">Create Admin Profile</button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div class="dashboard hidden" id="main-dashboard">
+        
+        <!-- Sidebar Controls -->
+        <aside class="sidebar">
+            
+            <!-- User Info Panel -->
+            <div class="card" id="user-info-panel">
+                <div class="panel-title">
+                    <i class="fa-solid fa-user-check"></i>
+                    <span>Active Profile</span>
+                </div>
+                <div class="user-details">
+                    <p><strong>Name:</strong> <span id="dash-user-name">--</span></p>
+                    <p><strong>Phone:</strong> <span id="dash-user-phone">--</span></p>
+                    <p><strong>Email:</strong> <span id="dash-user-email">--</span></p>
+                    <p><strong>Occupation:</strong> <span id="dash-user-occupation">--</span></p>
+                    <p><strong>Blood Group:</strong> <span id="dash-user-blood">--</span></p>
+                </div>
+                <button class="btn-secondary" id="view-my-profile-btn" style="margin-top: 0.5rem; font-size: 0.75rem;">
+                    <i class="fa-solid fa-id-card"></i> View / Edit Profile
+                </button>
+            </div>
+
+            <!-- Emergency Direct Helplines Box -->
+            <div class="card emergency-helpline-box">
+                <div class="panel-title text-danger">
+                    <i class="fa-solid fa-phone-flip"></i>
+                    <span>Emergency Helplines</span>
+                </div>
+                <div class="helpline-list">
+                    <a href="tel:999" class="helpline-btn hotline-national">
+                        <i class="fa-solid fa-shield-cat"></i>
+                        <span>National Emergency: <strong>999</strong></span>
+                    </a>
+                    <a href="tel:199" class="helpline-btn hotline-ambulance">
+                        <i class="fa-solid fa-truck-medical"></i>
+                        <span>Ambulance Control</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Route Setup -->
+            <div class="card">
+                <div class="panel-title">
+                    <i class="fa-solid fa-route"></i>
+                    <span>Route & Journey Setup</span>
+                </div>
+                
+                <div class="input-group">
+                    <label for="start-input">Start Location</label>
+                    <input type="text" id="start-input" placeholder="e.g. Mirpur 10, Dhaka">
+                </div>
+
+                <div class="input-group">
+                    <label for="dest-input">Destination</label>
+                    <input type="text" id="dest-input" placeholder="e.g. Uttara, Dhaka">
+                </div>
+
+                <button class="btn-primary" id="show-route-btn">
+                    <i class="fa-solid fa-map-location-dot"></i> Show Route
+                </button>
+                
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                    <button class="btn-success" id="start-movement-btn" style="flex: 1;">
+                        <i class="fa-solid fa-play"></i> Start Movement
+                    </button>
+                    <button class="btn-primary" id="mark-safe-btn" style="flex: 1; background: #0284c7;">
+                        <i class="fa-solid fa-shield-cat"></i> Mark Safe
+                    </button>
+                </div>
+            </div>
+
+            <!-- Submit Safety Feedback Section -->
+            <div class="card">
+                <div class="panel-title">
+                    <i class="fa-solid fa-comment-medical"></i>
+                    <span>Submit Safety Feedback</span>
+                </div>
+                <form id="safety-feedback-form">
+                    <div class="input-group">
+                        <label for="feedback-rating">Safety Rating</label>
+                        <select id="feedback-rating" required>
+                            <option value="Safe (5/5)">Safe (5/5)</option>
+                            <option value="Moderate (3/5)">Moderate (3/5)</option>
+                            <option value="Unsafe (1/5)">Unsafe / Suspicious (1/5)</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="feedback-text">Feedback Comments</label>
+                        <input type="text" id="feedback-text" placeholder="Route conditions, issues, etc." required>
+                    </div>
+                    <button type="submit" class="btn-secondary" style="width: 100%;">Submit Feedback</button>
+                </form>
+            </div>
+
+        </aside>
+
+        <!-- Center & Right Display Area -->
+        <main class="main-content">
+            
+            <!-- Map Display -->
+            <div id="map-container">
+                <div id="map"></div>
+                
+                <!-- Map Alert Overlay -->
+                <div class="map-overlay">
+                    <div class="text-muted text-xs" id="mode-indicator">Mode: Member View</div>
+                    <div id="alert-box" class="alert-box alert-normal">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span id="alert-text">Enter route to view live location.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Navigation Tabs -->
+            <div class="admin-tab-nav card">
+                <button class="admin-tab-btn active" id="tab-members-view">
+                    <i class="fa-solid fa-users"></i> Members Directory
+                </button>
+                <button class="admin-tab-btn admin-only-element hidden" id="tab-travel-history-view">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Travel History Logs
+                </button>
+                <button class="admin-tab-btn admin-only-element hidden" id="tab-alerts-view">
+                    <i class="fa-solid fa-bell"></i> SOS Alerts & System Logs
+                </button>
+                <button class="admin-tab-btn admin-only-element hidden" id="tab-reports-view">
+                    <i class="fa-solid fa-chart-pie"></i> Reports & Data Export
+                </button>
+            </div>
+
+            <!-- SECTION 1: Members Directory Table -->
+            <div class="table-container card" id="section-members">
+                <div class="section-header">
+                    <h3 id="directory-title"><i class="fa-solid fa-users"></i> Registered Members Directory</h3>
+                    <input type="text" id="search-input" placeholder="Search Name, Phone, Occupation, Blood..." class="search-input">
+                </div>
+                
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>Occupation</th>
+                                <th>Blood</th>
+                                <th>Emergency Contact</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="student-table-body">
+                            <!-- Dynamic Rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SECTION 2: Travel History Logs Table -->
+            <div class="table-container card hidden" id="section-travel-history">
+                <div class="section-header">
+                    <h3><i class="fa-solid fa-route"></i> Complete Travel History & Journey Logs</h3>
+                    <button class="btn-success" id="download-travel-history-csv" style="font-size: 0.75rem;">
+                        <i class="fa-solid fa-file-csv"></i> Download Travel Report (CSV)
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Start Time</th>
+                                <th>User Name</th>
+                                <th>Phone</th>
+                                <th>Start Location</th>
+                                <th>Destination</th>
+                                <th>Status</th>
+                                <th>Completion Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="travel-history-table-body">
+                            <!-- Dynamic Travel Logs -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SECTION 3: Admin View Alerts & System Logs -->
+            <div class="table-container card hidden" id="section-alerts">
+                <div class="section-header">
+                    <h3><i class="fa-solid fa-triangle-exclamation text-danger"></i> SOS Alerts & System Activity Logs</h3>
+                    <button class="btn-secondary" id="clear-logs-btn" style="font-size: 0.75rem;"><i class="fa-solid fa-broom"></i> Clear Logs</button>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>User Name</th>
+                                <th>Contact Number</th>
+                                <th>Log Event Type</th>
+                                <th>Details / Location</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-table-body">
+                            <!-- Dynamic Alert Logs -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SECTION 4: Admin Generate Reports -->
+            <div class="table-container card hidden" id="section-reports">
+                <div class="section-header">
+                    <h3><i class="fa-solid fa-file-invoice"></i> System Reports & Data Summary</h3>
+                    <button class="btn-success" id="download-csv-btn"><i class="fa-solid fa-file-csv"></i> Download Members CSV</button>
+                </div>
+                <div class="report-stats-grid">
+                    <div class="stat-card">
+                        <h4 id="stat-total-users">0</h4>
+                        <p>Total Registered Members</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4 id="stat-active-sos" class="text-danger">0</h4>
+                        <p>Total Emergency SOS Alerts</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4 id="stat-total-trips">0</h4>
+                        <p>Total Completed Travels</p>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <h4 style="margin-bottom: 0.5rem;"><i class="fa-solid fa-comments"></i> User Safety Feedbacks</h4>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Rating</th>
+                                    <th>Comments</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="feedback-table-body">
+                                <!-- Dynamic Feedbacks -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Leaflet JS Map Script -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Custom JS File -->
+    <script src="script.js"></script>
+</body>
+</html>
